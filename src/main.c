@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
 #include <SDL.h>
@@ -59,6 +60,9 @@ int main(int argc, char **argv) {
 
     unsigned int currentTime;
 
+    int hasKeypress = 0;
+    SDL_KeyboardEvent kbEvent;
+
     int loop = 1;
 
     while (loop) {
@@ -66,7 +70,8 @@ int main(int argc, char **argv) {
 
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_KEYDOWN) {
-                printf("keypress at time: %5u\n", e.key.timestamp);
+                hasKeypress = 1;
+                kbEvent = e.key;
                 if (e.key.keysym.sym == SDLK_ESCAPE) {
                     loop = 0;
                 }
@@ -78,25 +83,24 @@ int main(int argc, char **argv) {
 
         currentTime = SDL_GetTicks();
 
-        printf("%5u %5u\n", previousBeat, nextBeat);
-
         sincePrevBeat = currentTime - previousBeat;
         tillNextBeat  = nextBeat - currentTime;
-        if (abs(sincePrevBeat) <= beatProximity || abs(tillNextBeat) <= beatProximity) {
-            if (!isBeat) {
-                printf("flashing at %u\n", currentTime);
-            }
-            isBeat = 1;
-        } else {
-            if (isBeat) {
-                printf("ending flash at %u\n", currentTime);
-            }
-            isBeat = 0;
-        }
+        isBeat = abs(sincePrevBeat) <= beatProximity || abs(tillNextBeat) <= beatProximity;
 
         if (sincePrevBeat >= beatdelayms) {
             previousBeat = previousBeat + beatdelayms;
             nextBeat = previousBeat + beatdelayms;
+        }
+
+        if (hasKeypress) {
+            printf(
+                "keypress at time %5d: %5dms from last beat, %5dms from next beat\n",
+                kbEvent.timestamp,
+                kbEvent.timestamp - previousBeat,
+                nextBeat - kbEvent.timestamp
+            );
+
+            hasKeypress = 0;
         }
 
         int mouseX, mouseY;
@@ -123,6 +127,8 @@ int main(int argc, char **argv) {
 
         SDL_RenderPresent(renderer);
     }
+
+    SDL_Quit();
 
     return 0;
 }

@@ -8,12 +8,14 @@ ASSETDIR := assets
 TARGETDIR := target
 TARGET := $(TARGETDIR)/index.html
 
+SDLFLAGS := $(shell sdl2-config --cflags --libs)
+
 VERSION := 1.2.0
 
 $(TARGET): $(SRCDIR)/main.c
 	mkdir -p $(TARGETDIR)
 	#$(CC) $^ -s USE_SDL=2 -o $(TARGET) --preload-file $(ASSETDIR) --shell-file assets/shell_minimal.html -O3
-	$(CC) $^ -o ${TARGETDIR}/game -lSDL2 -I${INCDIR} $(shell sdl2-config --cflags --libs)  -O3
+	$(CC) $^ -o ${TARGETDIR}/game -I${INCDIR} ${SDLFLAGS}
 
 serve:
 	python2 -m SimpleHTTPServer
