@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/time.h>
+
 #include <SDL.h>
+#include <SDL_mixer.h>
 
 #include "../include/constants.h"
 
@@ -14,8 +15,13 @@ int main(int argc, char **argv) {
     SDL_Window *window;
     SDL_Renderer *renderer;
 
-    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+    if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO) != 0) {
         SDL_Log("Unable to initialize SDL2: %s\n", SDL_GetError());
+        return 1;
+    }
+
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 1024) < 0) {
+        SDL_Log("Unable to initialize SDL_mixer: %s\n", Mix_GetError());
         return 1;
     }
 
@@ -46,7 +52,14 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    Mix_Chunk *met;
+    if (!(met = Mix_LoadWAV("assets/metronome.wav"))) {
+        SDL_Log("Failed to load sound effect: %s\n", Mix_GetError());
+    }
+
     SDL_SetRenderTarget(renderer, NULL);
+    
+    Mix_AllocateChannels(16);
 
     float bpm = atof(argv[1]);
     int beatProximity = atoi(argv[2]);
@@ -90,14 +103,16 @@ int main(int argc, char **argv) {
         if (sincePrevBeat >= beatdelayms) {
             previousBeat = previousBeat + beatdelayms;
             nextBeat = previousBeat + beatdelayms;
+
+            Mix_PlayChannel(-1, met, 0);
         }
 
         if (hasKeypress) {
             printf(
                 "keypress at time %5d: %5dms from last beat, %5dms from next beat\n",
                 kbEvent.timestamp,
-                kbEvent.timestamp - previousBeat,
-                nextBeat - kbEvent.timestamp
+                DIFF(kbEvent.timestamp, previousBeat),
+                DIFF(nextBeat, kbEvent.timestamp)
             );
 
             hasKeypress = 0;
@@ -128,6 +143,12 @@ int main(int argc, char **argv) {
         SDL_RenderPresent(renderer);
     }
 
+    Mix_FreeChunk(met);
+
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+
+    Mix_Quit();
     SDL_Quit();
 
     return 0;

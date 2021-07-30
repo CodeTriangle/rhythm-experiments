@@ -15,7 +15,7 @@ VERSION := 1.2.0
 $(TARGET): $(SRCDIR)/main.c
 	mkdir -p $(TARGETDIR)
 	#$(CC) $^ -s USE_SDL=2 -o $(TARGET) --preload-file $(ASSETDIR) --shell-file assets/shell_minimal.html -O3
-	$(CC) $^ -o ${TARGETDIR}/game -I${INCDIR} ${SDLFLAGS}
+	$(CC) $^ -o ${TARGETDIR}/game -I${INCDIR} ${SDLFLAGS} -lSDL2_mixer
 
 serve:
 	python2 -m SimpleHTTPServer
