@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include <SDL.h>
 #include <SDL_mixer.h>
@@ -7,8 +8,8 @@
 #include "../include/constants.h"
 
 int main(int argc, char **argv) {
-    if (argc < 3) {
-        printf("need 2 argument");
+    if (argc < 4) {
+        printf("argument: %s <bpm> <pre/post flash> <anticipation for sound>", argv[0]);
         return 1;
     }
 
@@ -68,13 +69,23 @@ int main(int argc, char **argv) {
 
     int isBeat = 0;
 
-    unsigned int previousBeat = 0.0, nextBeat = beatdelayms;
-    unsigned int sincePrevBeat, tillNextBeat;
+    uint32_t previousBeat = 0.0, nextBeat = beatdelayms;
+    uint32_t sincePrevBeat, tillNextBeat;
 
-    unsigned int currentTime;
+    int soundAnticipation = atoi(argv[3]);
+    uint32_t nextSound = nextBeat - soundAnticipation;
+
+    uint32_t currentTime;
 
     int hasKeypress = 0;
     SDL_KeyboardEvent kbEvent;
+
+    int16_t keypresses[HISTORY_LENGTH];
+    size_t i, end = 0;
+
+    uint32_t prevToKeypress, nextToKeypress;
+
+    int x, y, lastX, lastY;
 
     int loop = 1;
 
@@ -103,16 +114,29 @@ int main(int argc, char **argv) {
         if (sincePrevBeat >= beatdelayms) {
             previousBeat = previousBeat + beatdelayms;
             nextBeat = previousBeat + beatdelayms;
+        }
 
+        if (currentTime >= nextSound) {
+            nextSound = nextSound + beatdelayms;
+            
             Mix_PlayChannel(-1, met, 0);
         }
 
         if (hasKeypress) {
+            prevToKeypress = DIFF(kbEvent.timestamp, previousBeat);
+            nextToKeypress = DIFF(nextBeat, kbEvent.timestamp);
+
+            if (end < HISTORY_LENGTH) {
+                keypresses[end++] = prevToKeypress < nextToKeypress ?
+                    prevToKeypress : -nextToKeypress;
+            }
+
             printf(
-                "keypress at time %5d: %5dms from last beat, %5dms from next beat\n",
+                "keypress number %d at time %5d: %5dms from last beat, %5dms from next beat\n",
+                end,
                 kbEvent.timestamp,
-                DIFF(kbEvent.timestamp, previousBeat),
-                DIFF(nextBeat, kbEvent.timestamp)
+                prevToKeypress,
+                nextToKeypress
             );
 
             hasKeypress = 0;
@@ -136,9 +160,23 @@ int main(int argc, char **argv) {
                 .h = 16
         };
 
-            SDL_SetRenderDrawColor(renderer, 250, 250, 200, 255);
+        SDL_SetRenderDrawColor(renderer, 250, 250, 200, 255);
 
         SDL_RenderFillRect(renderer, &mouseRect);
+
+        SDL_RenderDrawLine(renderer, 0, WINDOW_HEIGHT / 2, WINDOW_WIDTH, WINDOW_HEIGHT / 2);
+
+        for (i = 0; i < end; i++) {
+            x = WINDOW_WIDTH - WINDOW_WIDTH * (end - i - 1) / (HISTORY_LENGTH - 1);
+            y = WINDOW_HEIGHT / 2 + keypresses[i] / beatdelayms * WINDOW_HEIGHT / 2;
+            if (i == 0) {
+                SDL_RenderDrawPoint(renderer, x, y);
+            } else {
+                SDL_RenderDrawLine(renderer, lastX, lastY, x, y);
+            }
+            lastX = x;
+            lastY = y;
+        }
 
         SDL_RenderPresent(renderer);
     }
