@@ -84,6 +84,7 @@ int main(int argc, char **argv) {
     size_t i, end = 0;
 
     uint32_t prevToKeypress, nextToKeypress;
+    int drawing = 0;
 
     int x, y, lastX, lastY;
 
@@ -94,10 +95,17 @@ int main(int argc, char **argv) {
 
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_KEYDOWN) {
-                hasKeypress = 1;
-                kbEvent = e.key;
-                if (e.key.keysym.sym == SDLK_ESCAPE) {
-                    loop = 0;
+                switch (e.key.keysym.sym) {
+                    case SDLK_ESCAPE:
+                        loop = 0;
+                        break;
+                    case SDLK_SPACE:
+                        drawing = !drawing;
+                        break;
+                    default:
+                        hasKeypress = 1;
+                        kbEvent = e.key;
+                        break;
                 }
             }
             else if (e.type == SDL_QUIT) {
@@ -167,13 +175,19 @@ int main(int argc, char **argv) {
         SDL_RenderDrawLine(renderer, 0, WINDOW_HEIGHT / 2, WINDOW_WIDTH, WINDOW_HEIGHT / 2);
 
         for (i = 0; i < end; i++) {
+            if (!drawing) {
+                break;
+            }
+
             x = WINDOW_WIDTH - WINDOW_WIDTH * (end - i - 1) / (HISTORY_LENGTH - 1);
             y = WINDOW_HEIGHT / 2 + keypresses[i] / beatdelayms * WINDOW_HEIGHT / 2;
+
             if (i == 0) {
                 SDL_RenderDrawPoint(renderer, x, y);
             } else {
                 SDL_RenderDrawLine(renderer, lastX, lastY, x, y);
             }
+
             lastX = x;
             lastY = y;
         }
