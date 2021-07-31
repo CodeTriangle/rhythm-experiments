@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
             SDL_WINDOWPOS_UNDEFINED,
             WINDOW_WIDTH,
             WINDOW_HEIGHT,
-            0
+            SDL_WINDOW_RESIZABLE
     );
 
     if (window == NULL) {
@@ -89,6 +89,9 @@ int main(int argc, char **argv) {
     SDL_SetRenderTarget(renderer, NULL);
     
     Mix_AllocateChannels(16);
+
+    int screenW = WINDOW_WIDTH;
+    int screenH = WINDOW_HEIGHT;
 
     float bpm = atof(argv[1]);
     int beatProximity = atoi(argv[2]);
@@ -140,6 +143,8 @@ int main(int argc, char **argv) {
                 loop = 0;
             }
         }
+
+        SDL_GetWindowSize(window, &screenW, &screenH);
 
         currentTime = SDL_GetTicks();
 
@@ -200,15 +205,15 @@ int main(int argc, char **argv) {
 
         SDL_RenderFillRect(renderer, &mouseRect);
 
-        SDL_RenderDrawLine(renderer, 0, WINDOW_HEIGHT / 2, WINDOW_WIDTH, WINDOW_HEIGHT / 2);
+        SDL_RenderDrawLine(renderer, 0, screenH / 2, screenW, screenH / 2);
 
         for (i = 0; i < end; i++) {
             if (!drawing) {
                 break;
             }
 
-            x = WINDOW_WIDTH - WINDOW_WIDTH * (end - i - 1) / (HISTORY_LENGTH - 1);
-            y = WINDOW_HEIGHT / 2 + keypresses[i] / beatdelayms * WINDOW_HEIGHT / 2;
+            x = screenW - screenW * (end - i - 1) / (HISTORY_LENGTH - 1);
+            y = screenH / 2 + keypresses[i] / beatdelayms * screenH;
 
             if (i == 0) {
                 SDL_RenderDrawPoint(renderer, x, y);
