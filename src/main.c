@@ -173,7 +173,7 @@ int main(int argc, char **argv) {
             }
 
             printf(
-                "keypress number %d at time %5d: %5dms from last beat, %5dms from next beat\n",
+                "keypress number %3d at time %5d: %5dms from last beat, %5dms from next beat\n",
                 end,
                 kbEvent.timestamp,
                 prevToKeypress,
@@ -205,19 +205,17 @@ int main(int argc, char **argv) {
 
         SDL_RenderFillRect(renderer, &mouseRect);
 
-        SDL_RenderDrawLine(renderer, 0, screenH / 2, screenW, screenH / 2);
-
         for (i = 0; i < end; i++) {
             if (!drawing) {
                 break;
             }
 
+            SDL_RenderDrawLine(renderer, 0, screenH/2, screenW, screenH/2);
+
             x = screenW - screenW * (end - i - 1) / (HISTORY_LENGTH - 1);
             y = screenH / 2 + keypresses[i] / beatdelayms * screenH;
 
-            if (i == 0) {
-                SDL_RenderDrawPoint(renderer, x, y);
-            } else {
+            if (i != 0) {
                 SDL_RenderDrawLine(renderer, lastX, lastY, x, y);
             }
 
