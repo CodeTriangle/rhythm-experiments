@@ -36,9 +36,26 @@
 #include "../include/constants.h"
 
 int main(int argc, char **argv) {
-    if (argc < 4) {
-        printf("argument: %s <bpm> <pre/post flash> <anticipation for sound>", argv[0]);
-        return 1;
+    float bpm = BPM;
+    int beatProximity = BEAT_PROX;
+    int soundAnticipation = ANTICIPATION;
+    int drawing = 0;
+
+    int i;
+
+    for (i = 1; i < argc; i++) {
+        if (argv[i][0] == '-') {
+            char *option = argv[i]+1;
+            if (strcmp(option, "bpm") == 0) {
+                bpm = atof(argv[++i]);
+            } else if (strcmp(option, "prox") == 0) {
+                beatProximity = atoi(argv[++i]);
+            } else if (strcmp(option, "ant") == 0) {
+                soundAnticipation = atoi(argv[++i]);
+            } else if (strcmp(option, "draw") == 0) {
+                drawing = 1;
+            }
+        }
     }
 
     SDL_Window *window;
@@ -93,8 +110,6 @@ int main(int argc, char **argv) {
     int screenW = WINDOW_WIDTH;
     int screenH = WINDOW_HEIGHT;
 
-    float bpm = atof(argv[1]);
-    int beatProximity = atoi(argv[2]);
     float beatdelay = 1.0 / bpm * 60;
     float beatdelayms = beatdelay * 1000;
 
@@ -103,7 +118,6 @@ int main(int argc, char **argv) {
     uint32_t previousBeat = 0.0, nextBeat = beatdelayms;
     uint32_t sincePrevBeat, tillNextBeat;
 
-    int soundAnticipation = atoi(argv[3]);
     uint32_t nextSound = nextBeat - soundAnticipation;
 
     uint32_t currentTime;
@@ -112,10 +126,9 @@ int main(int argc, char **argv) {
     SDL_KeyboardEvent kbEvent;
 
     int16_t keypresses[HISTORY_LENGTH];
-    size_t i, end = 0;
+    size_t end = 0;
 
     uint32_t prevToKeypress, nextToKeypress;
-    int drawing = 0;
 
     int x, y, lastX, lastY;
 
@@ -205,12 +218,12 @@ int main(int argc, char **argv) {
 
         SDL_RenderFillRect(renderer, &mouseRect);
 
+        SDL_RenderDrawLine(renderer, 0, screenH/2, screenW, screenH/2);
+
         for (i = 0; i < end; i++) {
             if (!drawing) {
                 break;
             }
-
-            SDL_RenderDrawLine(renderer, 0, screenH/2, screenW, screenH/2);
 
             x = screenW - screenW * (end - i - 1) / (HISTORY_LENGTH - 1);
             y = screenH / 2 + keypresses[i] / beatdelayms * screenH;

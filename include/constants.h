@@ -26,12 +26,25 @@
 // ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE. 
 
-#define WINDOW_TITLE  "Rhythm Experiments"
-#define WINDOW_WIDTH  640
-#define WINDOW_HEIGHT 480
-#define HISTORY_LENGTH 60
+#ifndef RHYTHM_EXP_CONSTANTS_H
+#define RHYTHM_EXP_CONSTANTS_H
+
+#define WINDOW_TITLE   "Rhythm Experiments"
+#define WINDOW_WIDTH   640
+#define WINDOW_HEIGHT  480
+
+// Some default values for the program (can be overridden by cli
+
+#define BPM            120
+#define BEAT_PROX       30
+#define ANTICIPATION    15
+#define HISTORY_LENGTH  60
+
+// Convenience macros
 
 #define MIN(x, y) ((x) < (y)) ? (x) : (y)
 #define MAX(x, y) ((x) > (y)) ? (x) : (y)
 
 #define DIFF(x, y) ((x) > (y)) ? ((x) - (y)) : ((y) - (x))
+
+#endif
