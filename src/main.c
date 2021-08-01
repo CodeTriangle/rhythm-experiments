@@ -157,7 +157,6 @@ int main(int argc, char **argv) {
     SDL_KeyboardEvent kbEvent;
 
     Beat keypresses[HISTORY_LENGTH] = {0};
-    printf("%u\n", keypresses[1]);
 
     uint32_t prevToKeypress, nextToKeypress;
 
@@ -227,8 +226,9 @@ int main(int argc, char **argv) {
                     keypresses[beatNum].pressed = 1;
                     keypresses[beatNum].value = prevToKeypress;
                 } else if (beatNum + 1 < HISTORY_LENGTH) {
-                    keypresses[beatNum + 1].pressed = 1;
-                    keypresses[beatNum + 1].value = -nextToKeypress;
+                    int index = beatNum == 0 ? 0 : beatNum + 1;
+                    keypresses[index].pressed = 1;
+                    keypresses[index].value = -nextToKeypress;
                 }
             }
 
