@@ -40,6 +40,11 @@ int main(int argc, char **argv) {
     int beatProximity = BEAT_PROX;
     int soundAnticipation = ANTICIPATION;
     int drawing = 0;
+    int playMusic = 0;
+    char *musPath = "assets/music.mp3";
+    int musDelay = 0;
+    int playMet = 0;
+    char *metPath = "assets/metronome.wav";
 
     int i;
 
@@ -50,11 +55,25 @@ int main(int argc, char **argv) {
                 bpm = atof(argv[++i]);
             } else if (strcmp(option, "prox") == 0) {
                 beatProximity = atoi(argv[++i]);
-            } else if (strcmp(option, "ant") == 0) {
-                soundAnticipation = atoi(argv[++i]);
             } else if (strcmp(option, "draw") == 0) {
                 drawing = 1;
+            } else if (strcmp(option, "mus") == 0) {
+                playMusic = 1;
+            } else if (strcmp(option, "musp") == 0) {
+                musPath = argv[++i];
+            } else if (strcmp(option, "musd") == 0) {
+                musDelay = atoi(argv[++i]);
+            } else if (strcmp(option, "met") == 0) {
+                playMet = 1;
+            } else if (strcmp(option, "metp") == 0) {
+                metPath = argv[++i];
+            } else if (strcmp(option, "metant") == 0) {
+                soundAnticipation = atoi(argv[++i]);
+            } else {
+                printf("Unexpected argument (%d): %s\n", i, option);
             }
+        } else {
+            printf("Unexpected bare argument (%d): %s\n", i, argv[i]);
         }
     }
 
@@ -98,9 +117,14 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    Mix_Chunk *met;
-    if (!(met = Mix_LoadWAV("assets/metronome.wav"))) {
+    Mix_Chunk *met = NULL;
+    if (playMet && !(met = Mix_LoadWAV(metPath))) {
         SDL_Log("Failed to load sound effect: %s\n", Mix_GetError());
+    }
+
+    Mix_Music *mus = NULL;
+    if (playMusic && !(mus = Mix_LoadMUS(musPath))) {
+        SDL_Log("Failed to load music: %s\n", Mix_GetError());
     }
 
     SDL_SetRenderTarget(renderer, NULL);
@@ -115,10 +139,10 @@ int main(int argc, char **argv) {
 
     int isBeat = 0;
 
-    uint32_t previousBeat = 0.0, nextBeat = beatdelayms;
+    uint32_t previousBeat, nextBeat;
     uint32_t sincePrevBeat, tillNextBeat;
 
-    uint32_t nextSound = nextBeat - soundAnticipation;
+    uint32_t nextSound;
 
     uint32_t currentTime;
 
@@ -133,6 +157,10 @@ int main(int argc, char **argv) {
     int x, y, lastX, lastY;
 
     int loop = 1;
+
+    previousBeat = SDL_GetTicks();
+    nextBeat = previousBeat + beatdelayms;
+    nextSound = nextBeat - soundAnticipation;
 
     while (loop) {
         SDL_Event e;
@@ -170,10 +198,14 @@ int main(int argc, char **argv) {
             nextBeat = previousBeat + beatdelayms;
         }
 
-        if (currentTime >= nextSound) {
+        if (playMet && currentTime >= nextSound) {
             nextSound = nextSound + beatdelayms;
             
             Mix_PlayChannel(-1, met, 0);
+        }
+
+        if (playMusic && !Mix_PlayingMusic() && currentTime >= musDelay) {
+            Mix_PlayMusic(mus, -1);
         }
 
         if (hasKeypress) {
@@ -239,7 +271,8 @@ int main(int argc, char **argv) {
         SDL_RenderPresent(renderer);
     }
 
-    Mix_FreeChunk(met);
+    if (met) Mix_FreeChunk(met);
+    if (mus) Mix_FreeMusic(mus);
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
