@@ -35,6 +35,11 @@
 
 #include "../include/constants.h"
 
+typedef struct {
+    unsigned int pressed: 1;
+    signed int value: 15;
+} Beat;
+
 int main(int argc, char **argv) {
     float bpm = BPM;
     int beatProximity = BEAT_PROX;
@@ -137,6 +142,8 @@ int main(int argc, char **argv) {
     float beatdelay = 1.0 / bpm * 60;
     float beatdelayms = beatdelay * 1000;
 
+    uint32_t beatNum = 0;
+    int advanceBeat = 0;
     int isBeat = 0;
 
     uint32_t previousBeat, nextBeat;
@@ -149,8 +156,8 @@ int main(int argc, char **argv) {
     int hasKeypress = 0;
     SDL_KeyboardEvent kbEvent;
 
-    int16_t keypresses[HISTORY_LENGTH];
-    size_t end = 0;
+    Beat keypresses[HISTORY_LENGTH] = {0};
+    printf("%u\n", keypresses[1]);
 
     uint32_t prevToKeypress, nextToKeypress;
 
@@ -196,6 +203,7 @@ int main(int argc, char **argv) {
         if (sincePrevBeat >= beatdelayms) {
             previousBeat = previousBeat + beatdelayms;
             nextBeat = previousBeat + beatdelayms;
+            if (advanceBeat && beatNum < HISTORY_LENGTH) beatNum++;
         }
 
         if (playMet && currentTime >= nextSound) {
@@ -209,17 +217,24 @@ int main(int argc, char **argv) {
         }
 
         if (hasKeypress) {
+            if (!advanceBeat) advanceBeat = 1;
+
             prevToKeypress = DIFF(kbEvent.timestamp, previousBeat);
             nextToKeypress = DIFF(nextBeat, kbEvent.timestamp);
 
-            if (end < HISTORY_LENGTH) {
-                keypresses[end++] = prevToKeypress < nextToKeypress ?
-                    prevToKeypress : -nextToKeypress;
+            if (beatNum < HISTORY_LENGTH) {
+                if (prevToKeypress < nextToKeypress) {
+                    keypresses[beatNum].pressed = 1;
+                    keypresses[beatNum].value = prevToKeypress;
+                } else if (beatNum + 1 < HISTORY_LENGTH) {
+                    keypresses[beatNum + 1].pressed = 1;
+                    keypresses[beatNum + 1].value = -nextToKeypress;
+                }
             }
 
             printf(
-                "keypress number %3d at time %5d: %5dms from last beat, %5dms from next beat\n",
-                end,
+                "beat number %3d at time %5d: %5dms from last beat, %5dms from next beat\n",
+                beatNum,
                 kbEvent.timestamp,
                 prevToKeypress,
                 nextToKeypress
@@ -252,13 +267,17 @@ int main(int argc, char **argv) {
 
         SDL_RenderDrawLine(renderer, 0, screenH/2, screenW, screenH/2);
 
-        for (i = 0; i < end; i++) {
+        for (i = 0; i < beatNum; i++) {
             if (!drawing) {
                 break;
             }
 
-            x = screenW - screenW * (end - i - 1) / (HISTORY_LENGTH - 1);
-            y = screenH / 2 + keypresses[i] / beatdelayms * screenH;
+            if (!keypresses[i].pressed) {
+                continue;
+            }
+
+            x = screenW - screenW * (beatNum - i - 1) / (HISTORY_LENGTH - 1);
+            y = screenH / 2 + keypresses[i].value / beatdelayms * screenH;
 
             if (i != 0) {
                 SDL_RenderDrawLine(renderer, lastX, lastY, x, y);

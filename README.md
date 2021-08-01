@@ -30,5 +30,4 @@ As of now, the program accepts different command-line arguments:
 
 While you're in the game itself, `Escape` will cause the program to
 exit, `Space` will toggle a graph of how close you were to the correct
-beat, and every other key will count as a beat in the test. There is
-currently no way to detect missed beats.
+beat, and every other key will count as a beat in the test.
