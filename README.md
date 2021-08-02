@@ -27,6 +27,9 @@ As of now, the program accepts different command-line arguments:
     `assets/music.mp3` (you'll have to create that yourself)).
   * `-musd <i32>`: how many milliseconds to wait before starting the
     music (default: 0).
+* `-pat <str>`: a sequence of `1` and `0` characters indicating when a
+  beat is to be shown. If `-met` is set, the program will only play
+  sounds on those beats.
 
 While you're in the game itself, `Escape` will cause the program to
 exit, `Space` will toggle a graph of how close you were to the correct

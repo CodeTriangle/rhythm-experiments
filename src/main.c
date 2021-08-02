@@ -50,6 +50,8 @@ int main(int argc, char **argv) {
     int musDelay = 0;
     int playMet = 0;
     char *metPath = "assets/metronome.wav";
+    char *pattern = "1";
+    int patternLength = 1;
 
     int i;
 
@@ -74,6 +76,9 @@ int main(int argc, char **argv) {
                 metPath = argv[++i];
             } else if (strcmp(option, "metant") == 0) {
                 soundAnticipation = atoi(argv[++i]);
+            } else if (strcmp(option, "pat") == 0) {
+                pattern = argv[++i];
+                patternLength = strlen(pattern);
             } else {
                 printf("Unexpected argument (%d): %s\n", i, option);
             }
@@ -81,6 +86,8 @@ int main(int argc, char **argv) {
             printf("Unexpected bare argument (%d): %s\n", i, argv[i]);
         }
     }
+
+    printf("%d\n\n", patternLength);
 
     SDL_Window *window;
     SDL_Renderer *renderer;
@@ -144,7 +151,7 @@ int main(int argc, char **argv) {
 
     uint32_t beatNum = 0;
     int advanceBeat = 0;
-    int isBeat = 0;
+    int isBeat = 0, shouldPlayBeat = 1;
 
     uint32_t previousBeat, nextBeat;
     uint32_t sincePrevBeat, tillNextBeat;
@@ -200,15 +207,48 @@ int main(int argc, char **argv) {
         isBeat = abs(sincePrevBeat) <= beatProximity || abs(tillNextBeat) <= beatProximity;
 
         if (sincePrevBeat >= beatdelayms) {
-            previousBeat = previousBeat + beatdelayms;
+            previousBeat = nextBeat;
             nextBeat = previousBeat + beatdelayms;
-            if (advanceBeat && beatNum < HISTORY_LENGTH) beatNum++;
+
+            if (beatNum >= HISTORY_LENGTH) {
+                advanceBeat = 0;
+            }
+
+            sincePrevBeat = currentTime - previousBeat;
+            tillNextBeat  = nextBeat - currentTime;
+
+            if (advanceBeat) beatNum++;
+        }
+
+        if (advanceBeat) {
+            int patternNum = beatNum;
+
+            if (sincePrevBeat < tillNextBeat) {
+                patternNum -= 1;
+            }
+
+            patternNum %= patternLength;
+
+            if (patternNum < 0) {
+                patternNum = 0;
+            }
+
+            switch (pattern[patternNum]) {
+                case '1':
+                    shouldPlayBeat = 1;
+                    break;
+                case '0':
+                    shouldPlayBeat = 0;
+                    break;
+            }
         }
 
         if (playMet && currentTime >= nextSound) {
             nextSound = nextSound + beatdelayms;
             
-            Mix_PlayChannel(-1, met, 0);
+            if (shouldPlayBeat) {
+                Mix_PlayChannel(-1, met, 0);
+            }
         }
 
         if (playMusic && !Mix_PlayingMusic() && currentTime >= musDelay) {
@@ -216,20 +256,18 @@ int main(int argc, char **argv) {
         }
 
         if (hasKeypress) {
-            if (!advanceBeat) advanceBeat = 1;
+            if (!advanceBeat && beatNum == 0) advanceBeat = 1;
 
             prevToKeypress = DIFF(kbEvent.timestamp, previousBeat);
             nextToKeypress = DIFF(nextBeat, kbEvent.timestamp);
 
-            if (beatNum < HISTORY_LENGTH) {
-                if (prevToKeypress < nextToKeypress) {
-                    keypresses[beatNum].pressed = 1;
-                    keypresses[beatNum].value = prevToKeypress;
-                } else if (beatNum + 1 < HISTORY_LENGTH) {
-                    int index = beatNum == 0 ? 0 : beatNum + 1;
-                    keypresses[index].pressed = 1;
-                    keypresses[index].value = -nextToKeypress;
-                }
+            if (prevToKeypress < nextToKeypress) {
+                keypresses[beatNum].pressed = 1;
+                keypresses[beatNum].value = prevToKeypress;
+            } else if (beatNum + 1 < HISTORY_LENGTH) {
+                int index = beatNum == 0 ? 0 : beatNum + 1;
+                keypresses[index].pressed = 1;
+                keypresses[index].value = -nextToKeypress;
             }
 
             printf(
@@ -246,7 +284,7 @@ int main(int argc, char **argv) {
         int mouseX, mouseY;
         SDL_GetMouseState(&mouseX, &mouseY);
 
-        if (isBeat) {
+        if (isBeat && shouldPlayBeat) {
             SDL_SetRenderDrawColor(renderer, 0, 30, 120, 255);
         } else {
             SDL_SetRenderDrawColor(renderer, 20, 90, 120, 255);
