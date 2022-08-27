@@ -204,7 +204,7 @@ int main(int argc, char **argv) {
 
         sincePrevBeat = currentTime - previousBeat;
         tillNextBeat  = nextBeat - currentTime;
-        isBeat = abs(sincePrevBeat) <= beatProximity || abs(tillNextBeat) <= beatProximity;
+        isBeat = sincePrevBeat <= beatProximity || tillNextBeat <= beatProximity;
 
         if (sincePrevBeat >= beatdelayms) {
             previousBeat = nextBeat;
@@ -315,7 +315,7 @@ int main(int argc, char **argv) {
             }
 
             x = screenW - screenW * (beatNum - i - 1) / (HISTORY_LENGTH - 1);
-            y = screenH / 2 + keypresses[i].value / beatdelayms * screenH;
+            y = (float) screenH / 2 + keypresses[i].value / beatdelayms * screenH;
 
             if (i != 0) {
                 SDL_RenderDrawLine(renderer, lastX, lastY, x, y);
