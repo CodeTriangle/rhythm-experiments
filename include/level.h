@@ -33,7 +33,6 @@ typedef struct {
 typedef struct {
 	uint32_t beatNum;
 	bool advanceBeat;
-	bool isBeat, shouldPlayBeat;
 	uint32_t previousBeat, nextBeat;
 	uint32_t sincePrevBeat, tillNextBeat;
 	uint32_t nextSound;

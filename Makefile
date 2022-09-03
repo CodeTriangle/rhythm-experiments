@@ -5,18 +5,31 @@ BUNDLEDIR := rhythm-experiments
 INCDIR := include
 ASSETDIR := assets
 TARGETDIR := target
-TARGET := $(TARGETDIR)/index.html
+BUILDDIR := $(TARGETDIR)/obj
+TARGET := $(TARGETDIR)/game
 
 SDLFLAGS := $(shell sdl2-config --cflags --libs)
 
+LFLAGS := -lSDL2_mixer
+CFLAGS := -I $(INCDIR) $(SDLFLAGS) $(LFLAGS)
+
 VERSION := 0.1.0
 
-$(TARGET): $(SRCDIR)/main.c
+.PHONY: all
+
+all: \
+		$(BUILDDIR)/main.o \
+		$(BUILDDIR)/level.o
 	mkdir -p $(TARGETDIR)
-	$(CC) $^ -o ${TARGETDIR}/game -I${INCDIR} ${SDLFLAGS} -lSDL2_mixer
+	$(CC) $^ -o $(TARGET) $(CFLAGS)
+
+$(BUILDDIR)/%.o: $(SRCDIR)/%.c
+	mkdir -p $(BUILDDIR)
+	$(CC) $^ -c -o $@ $(CFLAGS)
 
 clean:
 	rm -r $(TARGET)
+	rm -r $(BUILDDIR)
 
 bundle:
 	mkdir -p $(BUNDLEDIR)

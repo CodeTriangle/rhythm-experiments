@@ -25,7 +25,5 @@ void calculate_level_attributes(LevelDefinition *def, LevelAttributes *att) {
 void init_default_level_progress(LevelDefinition *def, LevelProgress *prog) {
 	prog->beatNum = 0;
 	prog->advanceBeat = true;
-	prog->isBeat = true;
-	prog->shouldPlayBeat = true;
 	prog->history = malloc(sizeof(Beat) * def->historyLength);
 }

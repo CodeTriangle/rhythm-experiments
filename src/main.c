@@ -34,24 +34,12 @@
 #include <SDL_mixer.h>
 
 #include "../include/constants.h"
-
-typedef struct {
-	unsigned int pressed: 1;
-	signed int value: 15;
-} Beat;
+#include "../include/level.h"
 
 int main(int argc, char **argv) {
-	float bpm = BPM;
-	int beatProximity = BEAT_PROX;
-	int soundAnticipation = ANTICIPATION;
-	int drawing = 0;
-	int playMusic = 0;
-	char *musPath = "assets/music.mp3";
-	int musDelay = 0;
-	int playMet = 0;
-	char *metPath = "assets/metronome.wav";
-	char *pattern = "1";
-	int patternLength = 1;
+	LevelContext context;
+
+	init_default_level_definition(&context.def);
 
 	int i;
 
@@ -59,26 +47,26 @@ int main(int argc, char **argv) {
 		if (argv[i][0] == '-') {
 			char *option = argv[i]+1;
 			if (strcmp(option, "bpm") == 0) {
-				bpm = atof(argv[++i]);
+				context.def.bpm = atof(argv[++i]);
 			} else if (strcmp(option, "prox") == 0) {
-				beatProximity = atoi(argv[++i]);
+				context.def.beatProximity = atoi(argv[++i]);
 			} else if (strcmp(option, "draw") == 0) {
-				drawing = 1;
+				context.def.drawing = 1;
 			} else if (strcmp(option, "mus") == 0) {
-				playMusic = 1;
+				context.def.playMusic = 1;
 			} else if (strcmp(option, "musp") == 0) {
-				musPath = argv[++i];
+				context.def.musPath = argv[++i];
 			} else if (strcmp(option, "musd") == 0) {
-				musDelay = atoi(argv[++i]);
+				context.def.musDelay = atoi(argv[++i]);
 			} else if (strcmp(option, "met") == 0) {
-				playMet = 1;
+				context.def.playMet = 1;
 			} else if (strcmp(option, "metp") == 0) {
-				metPath = argv[++i];
+				context.def.metPath = argv[++i];
 			} else if (strcmp(option, "metant") == 0) {
-				soundAnticipation = atoi(argv[++i]);
+				context.def.soundAnticipation = atoi(argv[++i]);
 			} else if (strcmp(option, "pat") == 0) {
-				pattern = argv[++i];
-				patternLength = strlen(pattern);
+				context.def.pattern = argv[++i];
+				context.def.patternLength = strlen(context.def.pattern);
 			} else {
 				printf("Unexpected argument (%d): %s\n", i, option);
 			}
@@ -87,7 +75,8 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	printf("%d\n\n", patternLength);
+	calculate_level_attributes(&context.def, &context.att);
+	init_default_level_progress(&context.def, &context.prog);
 
 	SDL_Window *window;
 	SDL_Renderer *renderer;
@@ -130,12 +119,12 @@ int main(int argc, char **argv) {
 	}
 
 	Mix_Chunk *met = NULL;
-	if (playMet && !(met = Mix_LoadWAV(metPath))) {
+	if (context.def.playMet && !(met = Mix_LoadWAV(context.def.metPath))) {
 		SDL_Log("Failed to load sound effect: %s\n", Mix_GetError());
 	}
 
 	Mix_Music *mus = NULL;
-	if (playMusic && !(mus = Mix_LoadMUS(musPath))) {
+	if (context.def.playMusic && !(mus = Mix_LoadMUS(context.def.musPath))) {
 		SDL_Log("Failed to load music: %s\n", Mix_GetError());
 	}
 
@@ -146,37 +135,21 @@ int main(int argc, char **argv) {
 	int screenW = WINDOW_WIDTH;
 	int screenH = WINDOW_HEIGHT;
 
-	float beatdelay = 1.0 / bpm * 60;
-	float beatdelayms = beatdelay * 1000;
-
-	uint32_t beatNum = 0;
-	int advanceBeat = 0;
-	int isBeat = 0, shouldPlayBeat = 1;
-
-	uint32_t previousBeat, nextBeat;
-	uint32_t sincePrevBeat, tillNextBeat;
-
-	uint32_t nextSound;
-
-	uint32_t currentTime;
-
 	int hasKeypress = 0;
 	SDL_KeyboardEvent kbEvent;
 
 	Beat keypresses[HISTORY_LENGTH] = {0};
 
-	uint32_t prevToKeypress, nextToKeypress;
-
 	int x, y, lastX, lastY;
 
-	int loop = 1;
+	bool loop = true;
 
-	previousBeat = SDL_GetTicks();
-	nextBeat = previousBeat + beatdelayms;
-	nextSound = nextBeat - soundAnticipation;
+	context.prog.previousBeat = SDL_GetTicks();
+	context.prog.nextBeat = context.prog.previousBeat + context.att.beatdelayms;
+	context.prog.nextSound = context.prog.nextBeat - context.def.soundAnticipation;
 
 	while (loop) {
-		if (playMusic && !Mix_PlayingMusic() && currentTime >= musDelay) {
+		if (context.def.playMusic && !Mix_PlayingMusic() && context.prog.currentTime >= context.def.musDelay) {
 			Mix_PlayMusic(mus, -1);
 		}
 
@@ -189,7 +162,7 @@ int main(int argc, char **argv) {
 					loop = 0;
 					break;
 				case SDLK_SPACE:
-					drawing = !drawing;
+					context.def.drawing = !context.def.drawing;
 					break;
 				default:
 					hasKeypress = 1;
@@ -204,51 +177,48 @@ int main(int argc, char **argv) {
 
 		SDL_GetWindowSize(window, &screenW, &screenH);
 
-		currentTime = SDL_GetTicks();
+		context.prog.currentTime = SDL_GetTicks();
 
-		sincePrevBeat = currentTime - previousBeat;
-		tillNextBeat  = nextBeat - currentTime;
-		isBeat = sincePrevBeat <= beatProximity || tillNextBeat <= beatProximity;
+		uint32_t sincePrevBeat = context.prog.currentTime - context.prog.previousBeat;
+		uint32_t tillNextBeat  = context.prog.nextBeat - context.prog.currentTime;
+		bool isBeat = sincePrevBeat <= context.def.beatProximity || tillNextBeat <= context.def.beatProximity;
 
-		if (sincePrevBeat >= beatdelayms) {
-			previousBeat = nextBeat;
-			nextBeat = previousBeat + beatdelayms;
+		if (sincePrevBeat >= context.att.beatdelayms) {
+			context.prog.previousBeat = context.prog.nextBeat;
+			context.prog.nextBeat = context.prog.previousBeat + context.att.beatdelayms;
 
-			if (beatNum >= HISTORY_LENGTH) {
-				advanceBeat = 0;
+			if (context.prog.beatNum >= HISTORY_LENGTH) {
+				context.prog.advanceBeat = 0;
 			}
 
-			sincePrevBeat = currentTime - previousBeat;
-			tillNextBeat  = nextBeat - currentTime;
+			sincePrevBeat = context.prog.currentTime - context.prog.previousBeat;
+			tillNextBeat  = context.prog.nextBeat - context.prog.currentTime;
 
-			if (advanceBeat) beatNum++;
+			if (context.prog.advanceBeat) context.prog.beatNum++;
 		}
 
-		if (advanceBeat) {
-			int patternNum = beatNum;
+		bool shouldPlayBeat = true;
+
+		if (context.prog.advanceBeat) {
+			int patternNum = context.prog.beatNum;
 
 			if (sincePrevBeat < tillNextBeat) {
 				patternNum -= 1;
 			}
 
-			patternNum %= patternLength;
+			patternNum %= context.def.patternLength;
 
 			if (patternNum < 0) {
 				patternNum = 0;
 			}
 
-			switch (pattern[patternNum]) {
-			case '1':
-				shouldPlayBeat = 1;
-				break;
-			case '0':
+			if (0 == context.def.pattern[patternNum]) {
 				shouldPlayBeat = 0;
-				break;
 			}
 		}
 
-		if (playMet && currentTime >= nextSound) {
-			nextSound = nextSound + beatdelayms;
+		if (context.def.playMet && context.prog.currentTime >= context.prog.nextSound) {
+			context.prog.nextSound = context.prog.nextSound + context.att.beatdelayms;
 			
 			if (shouldPlayBeat) {
 				Mix_PlayChannel(-1, met, 0);
@@ -256,23 +226,23 @@ int main(int argc, char **argv) {
 		}
 
 		if (hasKeypress) {
-			if (!advanceBeat && beatNum == 0) advanceBeat = 1;
+			if (!context.prog.advanceBeat && context.prog.beatNum == 0) context.prog.advanceBeat = 1;
 
-			prevToKeypress = DIFF(kbEvent.timestamp, previousBeat);
-			nextToKeypress = DIFF(nextBeat, kbEvent.timestamp);
+			int prevToKeypress = DIFF(kbEvent.timestamp, context.prog.previousBeat);
+			int nextToKeypress = DIFF(context.prog.nextBeat, kbEvent.timestamp);
 
 			if (prevToKeypress < nextToKeypress) {
-				keypresses[beatNum].pressed = 1;
-				keypresses[beatNum].value = prevToKeypress;
-			} else if (beatNum + 1 < HISTORY_LENGTH) {
-				int index = beatNum == 0 ? 0 : beatNum + 1;
+				keypresses[context.prog.beatNum].pressed = 1;
+				keypresses[context.prog.beatNum].value = prevToKeypress;
+			} else if (context.prog.beatNum + 1 < HISTORY_LENGTH) {
+				int index = context.prog.beatNum == 0 ? 0 : context.prog.beatNum + 1;
 				keypresses[index].pressed = 1;
 				keypresses[index].value = -nextToKeypress;
 			}
 
 			printf(
 				"beat number %3d at time %5d: %5dms from last beat, %5dms from next beat\n",
-				beatNum,
+				context.prog.beatNum,
 				kbEvent.timestamp,
 				prevToKeypress,
 				nextToKeypress
@@ -305,8 +275,8 @@ int main(int argc, char **argv) {
 
 		SDL_RenderDrawLine(renderer, 0, screenH/2, screenW, screenH/2);
 
-		for (i = 0; i < beatNum; i++) {
-			if (!drawing) {
+		for (i = 0; i < context.prog.beatNum; i++) {
+			if (!context.def.drawing) {
 				break;
 			}
 
@@ -314,8 +284,8 @@ int main(int argc, char **argv) {
 				continue;
 			}
 
-			x = screenW - screenW * (beatNum - i - 1) / (HISTORY_LENGTH - 1);
-			y = (float) screenH / 2 + keypresses[i].value / beatdelayms * screenH;
+			x = screenW - screenW * (context.prog.beatNum - i - 1) / (HISTORY_LENGTH - 1);
+			y = (float) screenH / 2 + keypresses[i].value / context.att.beatdelayms * screenH;
 
 			if (i != 0) {
 				SDL_RenderDrawLine(renderer, lastX, lastY, x, y);
