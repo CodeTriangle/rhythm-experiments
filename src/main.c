@@ -29,12 +29,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <time.h>
 
 #include <SDL.h>
 #include <SDL_mixer.h>
 
+#include <pthread.h>
+
 #include "../include/constants.h"
 #include "../include/level.h"
+#include "../include/graphics.h"
 
 int main(int argc, char **argv) {
 	LevelContext context;
@@ -78,9 +82,6 @@ int main(int argc, char **argv) {
 	calculate_level_attributes(&context.def, &context.att);
 	init_default_level_progress(&context.def, &context.prog);
 
-	SDL_Window *window;
-	SDL_Renderer *renderer;
-
 	if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO) != 0) {
 		SDL_Log("Unable to initialize SDL2: %s\n", SDL_GetError());
 		return 1;
@@ -91,7 +92,10 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	window = SDL_CreateWindow(
+	GraphicsContext graphics;
+	pthread_mutex_init(&graphics.lock, NULL);
+	
+	graphics.window = SDL_CreateWindow(
 		WINDOW_TITLE,
 		SDL_WINDOWPOS_UNDEFINED,
 		SDL_WINDOWPOS_UNDEFINED,
@@ -100,20 +104,20 @@ int main(int argc, char **argv) {
 		SDL_WINDOW_RESIZABLE
 	);
 
-	if (window == NULL) {
+	if (graphics.window == NULL) {
 		SDL_Log("Could not create window: %s\n", SDL_GetError());
 		return 1;
 	}
 
-	renderer = SDL_CreateRenderer(
-		window,
+	graphics.renderer = SDL_CreateRenderer(
+		graphics.window,
 		-1,
 		SDL_RENDERER_ACCELERATED |
 		SDL_RENDERER_PRESENTVSYNC |
 		SDL_RENDERER_TARGETTEXTURE
 	);
 
-	if (renderer == NULL) {
+	if (graphics.renderer == NULL) {
 		SDL_Log("Could not create renderer: %s\n", SDL_GetError());
 		return 1;
 	}
@@ -128,7 +132,7 @@ int main(int argc, char **argv) {
 		SDL_Log("Failed to load music: %s\n", Mix_GetError());
 	}
 
-	SDL_SetRenderTarget(renderer, NULL);
+	SDL_SetRenderTarget(graphics.renderer, NULL);
 	
 	Mix_AllocateChannels(16);
 
@@ -144,10 +148,15 @@ int main(int argc, char **argv) {
 
 	bool loop = true;
 
+	pthread_t graphics_thread;
+	GraphicsArgs gArg = { context, graphics };
+	pthread_create(&graphics_thread, NULL, &graphics_work_function, &gArg);
+
 	context.prog.previousBeat = SDL_GetTicks();
 	context.prog.nextBeat = context.prog.previousBeat + context.att.beatdelayms;
 	context.prog.nextSound = context.prog.nextBeat - context.def.soundAnticipation;
 
+	struct timespec req = {0, 1000000};
 	while (loop) {
 		if (context.def.playMusic && !Mix_PlayingMusic() && context.prog.currentTime >= context.def.musDelay) {
 			Mix_PlayMusic(mus, -1);
@@ -174,8 +183,6 @@ int main(int argc, char **argv) {
 				loop = 0;
 			}
 		}
-
-		SDL_GetWindowSize(window, &screenW, &screenH);
 
 		context.prog.currentTime = SDL_GetTicks();
 
@@ -251,58 +258,20 @@ int main(int argc, char **argv) {
 			hasKeypress = 0;
 		}
 
-		int mouseX, mouseY;
-		SDL_GetMouseState(&mouseX, &mouseY);
-
 		if (isBeat && shouldPlayBeat) {
-			SDL_SetRenderDrawColor(renderer, 0, 30, 120, 255);
+			SDL_SetRenderDrawColor(graphics.renderer, 0, 30, 120, 255);
 		} else {
-			SDL_SetRenderDrawColor(renderer, 20, 90, 120, 255);
+			SDL_SetRenderDrawColor(graphics.renderer, 20, 90, 120, 255);
 		}
 
-		SDL_RenderClear(renderer);
-
-		SDL_Rect mouseRect = {
-			.x = mouseX - 8,
-			.y = mouseY - 8,
-			.w = 16,
-			.h = 16
-		};
-
-		SDL_SetRenderDrawColor(renderer, 250, 250, 200, 255);
-
-		SDL_RenderFillRect(renderer, &mouseRect);
-
-		SDL_RenderDrawLine(renderer, 0, screenH/2, screenW, screenH/2);
-
-		for (i = 0; i < context.prog.beatNum; i++) {
-			if (!context.def.drawing) {
-				break;
-			}
-
-			if (!keypresses[i].pressed) {
-				continue;
-			}
-
-			x = screenW - screenW * (context.prog.beatNum - i - 1) / (HISTORY_LENGTH - 1);
-			y = (float) screenH / 2 + keypresses[i].value / context.att.beatdelayms * screenH;
-
-			if (i != 0) {
-				SDL_RenderDrawLine(renderer, lastX, lastY, x, y);
-			}
-
-			lastX = x;
-			lastY = y;
-		}
-
-		SDL_RenderPresent(renderer);
+		nanosleep(&req, NULL);
 	}
 
 	if (met) Mix_FreeChunk(met);
 	if (mus) Mix_FreeMusic(mus);
 
-	SDL_DestroyRenderer(renderer);
-	SDL_DestroyWindow(window);
+	SDL_DestroyRenderer(graphics.renderer);
+	SDL_DestroyWindow(graphics.window);
 
 	Mix_Quit();
 	SDL_Quit();

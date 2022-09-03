@@ -19,7 +19,8 @@ VERSION := 0.1.0
 
 all: \
 		$(BUILDDIR)/main.o \
-		$(BUILDDIR)/level.o
+		$(BUILDDIR)/level.o \
+		$(BUILDDIR)/graphics.o
 	mkdir -p $(TARGETDIR)
 	$(CC) $^ -o $(TARGET) $(CFLAGS)
 
